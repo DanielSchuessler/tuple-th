@@ -39,6 +39,7 @@ import Data.List
 import Control.Monad
 import Control.Applicative
 import Control.Exception
+import Data.Set as Set
 
 
 -- | Makes a homogenous tuple type of the given size and element type 
@@ -56,14 +57,22 @@ withys = withNames "y"
 newNames ::  String -> Int -> Q [Name]
 newNames stem n = sequence [newName (stem++show i) | i <- [ 1::Int .. n ]] 
 
-withNames ::  String -> Int -> (PatQ -> [ExpQ] -> Q b) -> Q b
-withNames _ n _ | n < 0 = fail ("Negative tuple size: "++show n)
-withNames stem n body = do
+withNames :: String -> Int -> (PatQ -> [ExpQ] -> Q a) -> Q a
+withNames stem n body = withNames' stem n (body . tupP)
+
+withNames' :: String -> Int -> ([PatQ] -> [ExpQ] -> Q a) -> Q a
+withNames' _ n _ | n < 0 = fail ("Negative tuple size: "++show n)
+withNames' stem n body = do
     names <- newNames stem n 
-    body (tupP (fmap varP names)) (fmap varE names)
+    body (fmap varP names) (fmap varE names)
 
 
-withNames2 :: String-> String-> Int-> (PatQ -> [ExpQ] -> PatQ -> [ExpQ] -> Q b)-> Q b
+withNames2
+  :: String
+     -> String
+     -> Int
+     -> (PatQ -> [ExpQ] -> PatQ -> [ExpQ] -> Q a)
+     -> Q a
 withNames2 stem1 stem2 n body =
     withNames stem1 n (\xsp xes -> withNames stem2 n (body xsp xes))
 
@@ -286,8 +295,14 @@ uncatTuple n m = withxs (n+m) (\xsp xes ->
 --
 -- Each element of @js@ must be nonnegative and less than @n@.
 reindexTuple :: Int -> [Int] -> Q Exp
-reindexTuple n is = withxs n (\xsp xes ->
-    lam1E xsp (tupE (fmap (xes !!) is)))
+reindexTuple n is = withNames' "x" n (\xps xes ->
+    let
+        iset = Set.fromList is
+        xsp' = fmap (\(p,i) -> if i `member` iset then p else wildP) 
+                    (zip xps [0..])
+
+    in
+        lam1E (tupP xsp') (tupE (fmap (xes !!) is)))
 
 
 -- | Like 'reverse'.
@@ -367,18 +382,27 @@ deleteAtTuple n = do
     i <- newName "i"
     lam1E (varP i) $ 
         withxs n (\xsp xes ->
-            lam1E xsp $
-                caseE (varE i)
-                    [ match 
-                        (litP (integerL j))  
-                        (normalB . tupE . deleteAt j $ xes)
-                        []
-                    | j <- [0 .. fromIntegral n -1] ])
+
+                let
+                    matches0 = [ match 
+                                    (litP (integerL j))  
+                                    (normalB . tupE . deleteAt j $ xes)
+                                    []
+                                | j <- [0 .. fromIntegral n -1] ]
+
+                    errmsg1 = "deleteAtTuple "++show n++" "
+                    errmsg2 = ": index out of bounds"
+
+                    matches = matches0 ++ [ 
+                                match wildP (normalB 
+                                    [| error (errmsg1 ++ show $(varE i) ++ errmsg2) |])
+                                            [] ] 
+                in
+                    lam1E xsp $ caseE (varE i) matches)
 
 
     where
         deleteAt 0 (_:xs) = xs
         deleteAt i (x:xs) = x : deleteAt (i-1) xs
         deleteAt _ _ = assert False undefined
-
 

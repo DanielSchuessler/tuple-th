@@ -14,6 +14,6 @@ extra-source-files:  tests/Test.hs
 
 Library
   Exposed-modules: TupleTH     
-  Build-depends: base >= 4 && < 5, template-haskell
+  Build-depends: base >= 4 && < 5, template-haskell, containers
 
   

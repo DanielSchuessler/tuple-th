@@ -1,9 +1,11 @@
 {-# LANGUAGE TemplateHaskell, FlexibleInstances, MultiParamTypeClasses, NoMonomorphismRestriction, ScopedTypeVariables #-}
-{-# OPTIONS_GHC -ddump-splices -Wall #-}
+{-# OPTIONS_GHC -ddump-splices -Wall -fno-warn-name-shadowing #-}
+
 
 import TupleTH
 import Test.QuickCheck.All
 import Data.Char
+import Test.QuickCheck.Property
 
 prop_foldrTuple ::  (Int, Int, Int) -> Bool
 prop_foldrTuple t@(x::Int,y,z) = $(foldrTuple 3) (:) [] t == [x,y,z]
@@ -35,7 +37,26 @@ prop_safeTupleFromList_tooSmall (x::Int) y z = $(safeTupleFromList 4) [x,y,z] ==
 prop_elemTuple ::  Int -> Int -> Int -> Int -> Int -> Bool
 prop_elemTuple (x::Int) a b c d = $(elemTuple 4) x (a,b,c,d) == elem x [a,b,c,d] 
 
+prop_reindexTuple :: Int -> Int -> Int -> Bool
 prop_reindexTuple (x::Int) y z = $(reindexTuple 3 [1,1,0,0]) (x,y,z) == (y,y,x,x)
+
+prop_deleteAtTuple :: Int -> Int -> Int -> Property
+prop_deleteAtTuple x y z = 
+        (deleteAtTuple3 0 t == (y,z) )
+    .&. (deleteAtTuple3 1 t == (x,z) )
+    .&. (deleteAtTuple3 2 t == (x,y) )
+  where
+    t = (x,y,z)
+
+
+deleteAtTuple3 :: Integer -> (Int,Int,Int) -> (Int,Int)
+deleteAtTuple3 = $(deleteAtTuple 3)
+
+prop_deleteAtTuple_oob1 :: Property
+prop_deleteAtTuple_oob1 = expectFailure (deleteAtTuple3 (-1) (1,2,3) `seq` True)
+prop_deleteAtTuple_oob2 :: Property
+prop_deleteAtTuple_oob2 = expectFailure (deleteAtTuple3 3 (1,2,3) `seq` True)
+
 
 main ::  IO Bool
 main = $(quickCheckAll)
