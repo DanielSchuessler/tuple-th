@@ -25,6 +25,10 @@ prop_zipTuple ::  (Int, Integer) -> (Char, String) -> Bool
 prop_zipTuple t@(x::Int,y::Integer) t'@(x'::Char,y'::String) =
     $(zipTuple 2) t t' == ((x,x'),(y,y'))
 
+prop_zipTuple3 ::  (Int, Integer, Int) -> (Char, String, String) -> Bool
+prop_zipTuple3 t@(x,y,z) t'@(x',y',z') =
+    $(zipTuple 3) t t' == ((x,x'),(y,y'),(z,z'))
+
 prop_tupleFromList ::  Int -> Int -> Int -> Bool
 prop_tupleFromList (x::Int) y z = $(tupleFromList 3) [x,y,z] == (x,y,z) 
 prop_safeTupleFromList ::  Int -> Int -> Int -> Bool

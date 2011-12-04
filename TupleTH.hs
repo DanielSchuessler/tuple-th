@@ -94,7 +94,7 @@ liftExpFun argNameStem f = do
 --
 -- > (a1, a2, ..) -> (b1, b2, ..) -> ((a1,b1), (a2,b2), ..)
 zipTuple ::  Int -> Q Exp
-zipTuple n = zipTupleWith' n (conE (tupleDataName n))
+zipTuple n = zipTupleWith' n (conE (tupleDataName 2))
 
 -- | Like 'zipWith'. 
 --
