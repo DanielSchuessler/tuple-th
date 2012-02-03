@@ -6,13 +6,11 @@
 --
 -- @ $('catTuples' 1 2) = \\x (y,z) -> (x,y,z) @
 module TupleTH(
-    -- * Types
-        htuple,
     -- * Transformation
-        mapTuple, mapTuple', filterTuple, filterTuple', reindexTuple, reverseTuple, rotateTuple, subtuples, deleteAtTuple, 
+        mapTuple, mapTuple', filterTuple, filterTuple', reindexTuple, reverseTuple, rotateTuple, subtuples, deleteAtTuple, takeTuple, dropTuple, safeDeleteTuple, 
     -- * Combination
-        zipTuple, catTuples,uncatTuple,
-        -- ** ZipWith
+        zipTuple, catTuples, uncatTuple, splitTupleAt,
+    -- ** ZipWith
         zipTupleWith, zipTupleWith',
     -- * Construction
         safeTupleFromList, tupleFromList, constTuple, 
@@ -29,7 +27,9 @@ module TupleTH(
         anyTuple, anyTuple', 
         allTuple, allTuple',
     -- * Monadic/applicative
-        sequenceTuple, sequenceATuple
+        sequenceTuple, sequenceATuple,
+    -- * Types
+        htuple,
     ) where
 
 import Language.Haskell.TH
@@ -39,7 +39,8 @@ import Data.List
 import Control.Monad
 import Control.Applicative
 import Control.Exception
-import Data.Set as Set
+import qualified Data.Set as Set
+import Data.Set(member)
 
 
 -- | Makes a homogenous tuple type of the given size and element type 
@@ -279,13 +280,22 @@ catTuples :: Int -> Int -> Q Exp
 catTuples n m = withxs n (\xsp xes -> withys m (\ysp yes ->
     lamE [xsp,ysp] (tupE (xes ++ yes))))
 
--- | @uncatTuple n m@ is the inverse function of @uncurry (catTuples n m)@. 
+-- | @uncatTuple n m = 'splitTupleAt' (n+m) n 
+--
+-- @uncatTuple n m@ is the inverse function of @uncurry (catTuples n m)@. 
 uncatTuple :: Int -> Int -> Q Exp
-uncatTuple n m = withxs (n+m) (\xsp xes -> 
-    lam1E xsp (tupE [tupE (take n xes),  tupE (drop n xes) ]))
+uncatTuple n m = splitTupleAt (n+m) n 
+
+-- | @splitTupleAt n i@ => @\(x_0, ..., x_{n-1}) -> ((x_0, ..., x_{i-1}),(x_i, ..., x_{n-1})@ 
+splitTupleAt :: Int -> Int -> Q Exp
+splitTupleAt n i = 
+ withxs n (\xsp xes -> 
+    case splitAt i xes of
+         (l,r) -> lam1E xsp (tupE [tupE l, tupE r])) 
 
 
--- | @reindexTuple n js@ creates the function
+
+-- | @reindexTuple n js@ =>
 --
 -- > \(x_0, ..., x_{n-1}) -> (x_{js !! 0}, x_{js !! 1}, ... x_{last js})
 --
@@ -406,3 +416,33 @@ deleteAtTuple n = do
         deleteAt i (x:xs) = x : deleteAt (i-1) xs
         deleteAt _ _ = assert False undefined
 
+
+-- | @takeTuple n i = \(x_0, ..., x_{n-1}) -> (x_0, ..., x_{m-1})@
+takeTuple :: Int -> Int -> Q Exp
+takeTuple n i = reindexTuple n [0..i-1] 
+
+-- | @dropTuple n i = \(x_0, ..., x_{n-1}) -> (x_i, ..., x_{n-1})@
+dropTuple :: Int -> Int -> Q Exp
+dropTuple n i = reindexTuple n [i..n-1]
+
+safeDeleteTuple :: Int -> Q Exp
+safeDeleteTuple n = do
+    e <- newName "_deletee" 
+    withxs n (\xsp xes ->
+        lamE [varP e, xsp] (
+
+            let
+                ixes = zip [0::Int ..] xes
+
+                ges = map (\(i,xe) ->
+                            normalGE  
+                                [| $(varE e) == $(xe) |]
+                                [| Just $((tupE . map snd . filter ((/= i) . fst)) ixes) |] 
+                          )
+                           ixes
+                        
+
+                last_ge = normalGE [|otherwise|] [|Nothing|]
+
+            in
+                caseE [|()|] [match wildP (guardedB (ges ++ [last_ge])) []]))
