@@ -15,7 +15,7 @@ module TupleTH(
     -- * Construction
         safeTupleFromList, tupleFromList, constTuple, 
     -- * Deconstruction
-        proj, elemTuple, tupleToList, sumTuple,
+        proj, proj', elemTuple, tupleToList, sumTuple,
     -- ** Right folds
         foldrTuple, foldrTuple', 
         foldr1Tuple, foldr1Tuple', 
@@ -32,15 +32,15 @@ module TupleTH(
         htuple,
     ) where
 
-import Language.Haskell.TH
-import Data.Maybe
-import Data.Functor
-import Data.List
+import Control.Applicative ( Applicative((<*>), pure) )
+import Control.Exception ( assert )
 import Control.Monad
-import Control.Applicative
-import Control.Exception
-import qualified Data.Set as Set
+import Data.Functor((<$>))
+import Data.Maybe(fromMaybe)
 import Data.Set(member)
+import Language.Haskell.TH
+import qualified Data.Set as Set
+import Data.List
 
 
 -- | Makes a homogenous tuple type of the given size and element type 
@@ -204,6 +204,7 @@ mapTuple' n f = withxs n (\xsp xes ->
         lamE [xsp] (tupE [f `appE` x  | x <- xes ]))
 
 
+-- | Simple 'match'
 smatch ::  PatQ -> ExpQ -> MatchQ
 smatch p e = match p (normalB e) []
 
@@ -425,6 +426,7 @@ takeTuple n i = reindexTuple n [0..i-1]
 dropTuple :: Int -> Int -> Q Exp
 dropTuple n i = reindexTuple n [i..n-1]
 
+-- | @safeDeleteTuple n@ generates a function analogous to 'delete' that takes an element and an @n@-tuple and maybe returns an @n-1@-tuple (if and only if the element was found).
 safeDeleteTuple :: Int -> Q Exp
 safeDeleteTuple n = do
     e <- newName "_deletee" 
@@ -446,3 +448,25 @@ safeDeleteTuple n = do
 
             in
                 caseE [|()|] [match wildP (guardedB (ges ++ [last_ge])) []]))
+
+
+
+-- | Like 'proj', but takes the index argument as the first argument at runtime and returns a @Maybe@.
+--
+-- >>> :t $(proj' 3)
+-- $(proj' 3) :: Num a => (a1, a1, a1) -> a -> Maybe a1
+--
+proj' :: Int -> Q Exp
+proj' n = do
+    i <- newName "_i"
+    withxs n (\xsp xes ->
+        lamE [varP i,xsp]
+            (caseE (varE i)
+                ([ smatch (litP . integerL . fromIntegral $ j) [| Just $(xes !! j) |]
+                    | j <- [0..n-1] ]
+
+                 ++ [smatch wildP [|Nothing|]])))
+
+
+
+

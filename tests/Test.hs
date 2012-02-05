@@ -6,6 +6,7 @@ import TupleTH
 import Test.QuickCheck.All
 import Data.Char
 import Test.QuickCheck.Property
+import Data.Maybe
 
 prop_foldrTuple ::  (Int, Int, Int) -> Bool
 prop_foldrTuple t@(x::Int,y,z) = $(foldrTuple 3) (:) [] t == [x,y,z]
@@ -60,6 +61,14 @@ prop_deleteAtTuple_oob1 :: Property
 prop_deleteAtTuple_oob1 = expectFailure (deleteAtTuple3 (-1) (1,2,3) `seq` True)
 prop_deleteAtTuple_oob2 :: Property
 prop_deleteAtTuple_oob2 = expectFailure (deleteAtTuple3 3 (1,2,3) `seq` True)
+
+
+prop_proj' :: (Int,Int,Int) -> Property
+prop_proj' xs@(x,y,z) = 
+    let 
+        xs' = $(mapTuple 5) (\i -> $(proj' 3) i xs) (-1::Int,0,1,2,3)
+    in
+        property (xs' == (Nothing,Just x,Just y,Just z,Nothing))
 
 
 main ::  IO Bool

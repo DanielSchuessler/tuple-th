@@ -1,5 +1,5 @@
 Name:                tuple-th
-Version:             0.2.3
+Version:             0.2.4
 Synopsis:            Generate (non-recursive) utility functions for tuples of statically known size
 Description:         Template Haskell functions for generating functions similar to those in Data.List for tuples of statically known size.
 License:             BSD3
