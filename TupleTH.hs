@@ -16,6 +16,7 @@ module TupleTH(
         safeTupleFromList, tupleFromList, constTuple, 
     -- * Deconstruction
         proj, proj', elemTuple, tupleToList, sumTuple,
+        findSuccessiveElementsSatisfying,
     -- ** Right folds
         foldrTuple, foldrTuple', 
         foldr1Tuple, foldr1Tuple', 
@@ -426,6 +427,11 @@ takeTuple n i = reindexTuple n [0..i-1]
 dropTuple :: Int -> Int -> Q Exp
 dropTuple n i = reindexTuple n [i..n-1]
 
+
+cond :: [Q (Guard, Exp)] -> ExpQ -> ExpQ
+cond branches otherwiseE =
+    caseE [|()|] [match wildP (guardedB (branches ++ [normalGE [|otherwise|] otherwiseE])) []]
+
 -- | @safeDeleteTuple n@ generates a function analogous to 'delete' that takes an element and an @n@-tuple and maybe returns an @n-1@-tuple (if and only if the element was found).
 safeDeleteTuple :: Int -> Q Exp
 safeDeleteTuple n = do
@@ -447,7 +453,7 @@ safeDeleteTuple n = do
                 last_ge = normalGE [|otherwise|] [|Nothing|]
 
             in
-                caseE [|()|] [match wildP (guardedB (ges ++ [last_ge])) []]))
+                cond ges [|Nothing|]))
 
 
 
@@ -468,5 +474,29 @@ proj' n = do
                  ++ [smatch wildP [|Nothing|]])))
 
 
+
+
+-- | Generates a function that takes a binary relation and a tuple @xs@, and returns 'Just' the first index @i@ such that the relation holds for @x_i@, @x_{i+1}@, or 'Nothing'.
+--
+-- >>> :t $(findSuccessiveElementsSatisfying 4)
+-- $(findSuccessiveElementsSatisfying 4)
+--   :: Num a => (t -> t -> Bool) -> (t, t, t,t ) -> Maybe a
+findSuccessiveElementsSatisfying :: Int -> Q Exp
+findSuccessiveElementsSatisfying n = do
+    r <- newName "_r"
+    withxs n (\xsp xes ->
+        lamE [varP r, xsp]
+            (cond
+                [ normalGE [| $(varE r) $(x0) $(x1) |] 
+                           [| Just $(litE . integerL $ i) |]
+
+                    |
+                        (i,x0,x1) <- zip3 [0..] xes (drop 1 xes) ]
+                [|Nothing|]))
+                
+
+
+
+            
 
 
