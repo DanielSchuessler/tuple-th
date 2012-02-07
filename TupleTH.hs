@@ -52,9 +52,9 @@ htuple n t = foldl appT (tupleT n) (replicate n t)
 
 
 withxs ::  Int -> (PatQ -> [ExpQ] -> Q b) -> Q b
-withxs = withNames "x"
+withxs = withNames "_x"
 withys ::  Int -> (PatQ -> [ExpQ] -> Q b) -> Q b
-withys = withNames "y"
+withys = withNames "_y"
 
 newNames ::  String -> Int -> Q [Name]
 newNames stem n = sequence [newName (stem++show i) | i <- [ 1::Int .. n ]] 
@@ -121,7 +121,7 @@ proj ::  Int -- ^ Size of tuple
       -> Int -- ^ 0-based index of component to retrieve
       -> ExpQ
 proj n i = do
-    x <- newName "x"
+    x <- newName "_x"
     lam1E (tupP (replicate i wildP ++ [ varP x ] ++ replicate (n-i-1) wildP)) (varE x) 
     
 -- | Type of the generated expression: 
@@ -133,7 +133,7 @@ foldrTuple n = liftExpFun "c" (foldrTuple' n)
 -- | Takes the folding function (but not the seed element) as a quoted expression. See 'mapTuple'' for how this can be useful.
 foldrTuple' :: Int -> ExpQ -> ExpQ
 foldrTuple' n c = do
-    z <- newName "z"
+    z <- newName "_z"
     withxs n (\xsp xes -> lamE [varP z, xsp] (foldr (appE2 c) (varE z) xes)) 
 
 -- | Type of the generated expression: 
@@ -158,7 +158,7 @@ foldlTuple n = liftExpFun "c" (foldlTuple' n)
 -- | Takes the folding function (but not the seed element) as a quoted expression. See 'mapTuple'' for how this can be useful.
 foldlTuple' :: Int -> ExpQ -> ExpQ
 foldlTuple' n c = do
-    z <- newName "z"
+    z <- newName "_z"
     withxs n (\xsp xes -> lamE [varP z, xsp] (foldl (appE2 c) (varE z) xes)) 
 
 -- | Type of the generated expression: 
@@ -214,10 +214,10 @@ smatch p e = match p (normalB e) []
 -- > [a] -> Maybe (a, ..)
 safeTupleFromList ::  Int -> Q Exp
 safeTupleFromList n = do
-    xns <- newNames "x" n
+    xns <- newNames "_x" n
     let xps = varP <$> xns
         xes = varE <$> xns
-    xs <- newName "xs" 
+    xs <- newName "_xs" 
     lam1E (varP xs) (caseE (varE xs)
                        [ smatch (listP xps) (conE 'Just `appE` (tupE xes))
                        , smatch wildP (conE 'Nothing)
@@ -267,7 +267,7 @@ allTuple' n p = [| $(andTuple n) . $(mapTuple' n p) |]
 -- > Eq a => a -> (a, ..) -> Bool
 elemTuple ::  Int -> Q Exp
 elemTuple n = do
-    z <- newName "z"
+    z <- newName "_z"
     lam1E (varP z) (anyTuple' n [| (== $(varE z)) |])
 
 
@@ -391,7 +391,7 @@ subtuples n k = withxs n (\xsp xes ->
 -- | Generates a function which takes a 'Num' @i@ and a homogenous tuple of size @n@ and deletes the @i@-th (0-based) element of the tuple. 
 deleteAtTuple :: Int -> Q Exp
 deleteAtTuple n = do
-    i <- newName "i"
+    i <- newName "_i"
     lam1E (varP i) $ 
         withxs n (\xsp xes ->
 
@@ -480,7 +480,7 @@ proj' n = do
 --
 -- >>> :t $(findSuccessiveElementsSatisfying 4)
 -- $(findSuccessiveElementsSatisfying 4)
---   :: Num a => (t -> t -> Bool) -> (t, t, t,t ) -> Maybe a
+--   :: (t -> t -> Bool) -> (t, t, t, t) -> Maybe Int
 findSuccessiveElementsSatisfying :: Int -> Q Exp
 findSuccessiveElementsSatisfying n = do
     r <- newName "_r"
@@ -488,7 +488,7 @@ findSuccessiveElementsSatisfying n = do
         lamE [varP r, xsp]
             (cond
                 [ normalGE [| $(varE r) $(x0) $(x1) |] 
-                           [| Just $(litE . integerL $ i) |]
+                           [| Just ($(litE . integerL $ i) :: Int) |]
 
                     |
                         (i,x0,x1) <- zip3 [0..] xes (drop 1 xes) ]
