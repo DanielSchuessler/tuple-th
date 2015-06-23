@@ -495,16 +495,19 @@ findSuccessiveElementsSatisfying n = do
                 [|Nothing|]))
                 
 
--- | generates function modifying single element in a tuple
-updateAtN :: Int -- ^ length of the input tuple
-          -> Int -- ^ index of the tuple starting with 0
+-- | Generates a function modifying a single element of a tuple.
+updateAtN :: Int -- ^ Length of the input tuple
+          -> Int -- ^ 0-based index of the element to be modified
           -> Q Exp -- ^ (b -> c) -> (a1,a2,b,a3,a4) -> (a1,a2,c,a3,a4)
-updateAtN length element = do
-  mapFunction <- newName "x"
-  names <- forM [1..length] $ const $ newName "x"
-  let
-    parameters = map VarP names
-    results = map VarE names
-    (start, x:xs) = splitAt element results
-    finalResults = start ++ [AppE (VarE mapFunction) x] ++ xs
-  return $ LamE [VarP mapFunction] ( LamE [ TupP parameters ] $ TupE finalResults )
+updateAtN n element = do
+  mapFunction <- newName "_f"
+  withxs n (\xsp xes -> do
+
+    when (element < 0 || element >= n) $
+      fail ("updateAtN "++show n++" "++show element++": Element index out of range")
+
+    let
+      (start, x:xs) = splitAt element xes
+      results = start ++ appE (varE mapFunction) x : xs
+
+    lamE [varP mapFunction] ( lamE [ xsp ] $ tupE results ))
