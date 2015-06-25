@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell, FunctionalDependencies, MultiParamTypeClasses #-}
 {-# OPTIONS -Wall #-}
 
--- | Note: One-tuples are currently understood as just the original type by Template Haskell 
+-- | Note: One-tuples are currently understood as just the original type by Template Haskell
 -- (though this could be an undefined case which is not guaranteed to work this way?), so for example, we get
 --
 -- @ $('catTuples' 1 2) = \\x (y,z) -> (x,y,z) @
@@ -13,19 +13,19 @@ module TupleTH(
     -- ** ZipWith
         zipTupleWith, zipTupleWith',
     -- * Construction
-        safeTupleFromList, tupleFromList, constTuple, 
+        safeTupleFromList, tupleFromList, constTuple,
     -- * Deconstruction
         proj, proj', elemTuple, tupleToList, sumTuple,
         findSuccessiveElementsSatisfying,
     -- ** Right folds
-        foldrTuple, foldrTuple', 
-        foldr1Tuple, foldr1Tuple', 
+        foldrTuple, foldrTuple',
+        foldr1Tuple, foldr1Tuple',
     -- ** Left folds
-        foldlTuple, foldlTuple', 
-        foldl1Tuple, foldl1Tuple', 
+        foldlTuple, foldlTuple',
+        foldl1Tuple, foldl1Tuple',
     -- ** Predicates
         andTuple, orTuple,
-        anyTuple, anyTuple', 
+        anyTuple, anyTuple',
         allTuple, allTuple',
     -- * Monadic/applicative
         sequenceTuple, sequenceATuple,
@@ -44,7 +44,7 @@ import qualified Data.Set as Set
 import Data.List
 
 
--- | Makes a homogenous tuple type of the given size and element type 
+-- | Makes a homogenous tuple type of the given size and element type
 --
 -- > $(htuple 2) [t| Char |] = (Char,Char)
 htuple ::  Int -> TypeQ -> TypeQ
@@ -57,7 +57,7 @@ withys ::  Int -> (PatQ -> [ExpQ] -> Q b) -> Q b
 withys = withNames "_y"
 
 newNames ::  String -> Int -> Q [Name]
-newNames stem n = sequence [newName (stem++show i) | i <- [ 1::Int .. n ]] 
+newNames stem n = sequence [newName (stem++show i) | i <- [ 1::Int .. n ]]
 
 withNames :: String -> Int -> (PatQ -> [ExpQ] -> Q a) -> Q a
 withNames stem n body = withNames' stem n (body . tupP)
@@ -65,7 +65,7 @@ withNames stem n body = withNames' stem n (body . tupP)
 withNames' :: String -> Int -> ([PatQ] -> [ExpQ] -> Q a) -> Q a
 withNames' _ n _ | n < 0 = fail ("Negative tuple size: "++show n)
 withNames' stem n body = do
-    names <- newNames stem n 
+    names <- newNames stem n
     body (fmap varP names) (fmap varE names)
 
 
@@ -82,7 +82,7 @@ withNames2 stem1 stem2 n body =
 appE2 ::  ExpQ -> ExpQ -> ExpQ -> ExpQ
 appE2 f x y = f `appE` x `appE` y
 
--- | Converts an expression-level function to a function expression 
+-- | Converts an expression-level function to a function expression
 liftExpFun ::  String -> (ExpQ -> ExpQ) -> Q Exp
 liftExpFun argNameStem f = do
     argName <- newName argNameStem
@@ -90,17 +90,17 @@ liftExpFun argNameStem f = do
 
 
 
--- | Like 'zip'. 
+-- | Like 'zip'.
 --
--- Type of the generated expression: 
+-- Type of the generated expression:
 --
 -- > (a1, a2, ..) -> (b1, b2, ..) -> ((a1,b1), (a2,b2), ..)
 zipTuple ::  Int -> Q Exp
 zipTuple n = zipTupleWith' n (conE (tupleDataName 2))
 
--- | Like 'zipWith'. 
+-- | Like 'zipWith'.
 --
--- Type of the generated expression:  
+-- Type of the generated expression:
 --
 -- > (a -> b -> c) -> (a, ..) -> (b, ..) -> (c, ..)
 zipTupleWith ::  Int -> ExpQ
@@ -110,8 +110,8 @@ zipTupleWith n = liftExpFun "f" (zipTupleWith' n)
 -- | Takes the zipping function as a quoted expression. See 'mapTuple'' for how this can be useful.
 zipTupleWith' :: Int -> ExpQ -> ExpQ
 zipTupleWith' n f =
-    withNames2 "x" "y" n 
-        (\xsp xes ysp yes -> 
+    withNames2 "x" "y" n
+        (\xsp xes ysp yes ->
             lamE [xsp,ysp] (tupE (zipWith (appE2 f) xes yes)))
 
 
@@ -122,9 +122,9 @@ proj ::  Int -- ^ Size of tuple
       -> ExpQ
 proj n i = do
     x <- newName "_x"
-    lam1E (tupP (replicate i wildP ++ [ varP x ] ++ replicate (n-i-1) wildP)) (varE x) 
-    
--- | Type of the generated expression: 
+    lam1E (tupP (replicate i wildP ++ [ varP x ] ++ replicate (n-i-1) wildP)) (varE x)
+
+-- | Type of the generated expression:
 --
 -- > (a -> r -> r) -> r -> (a, ..) -> r
 foldrTuple ::  Int -> ExpQ
@@ -134,9 +134,9 @@ foldrTuple n = liftExpFun "c" (foldrTuple' n)
 foldrTuple' :: Int -> ExpQ -> ExpQ
 foldrTuple' n c = do
     z <- newName "_z"
-    withxs n (\xsp xes -> lamE [varP z, xsp] (foldr (appE2 c) (varE z) xes)) 
+    withxs n (\xsp xes -> lamE [varP z, xsp] (foldr (appE2 c) (varE z) xes))
 
--- | Type of the generated expression: 
+-- | Type of the generated expression:
 --
 -- > (a -> a -> a) -> (a, ..) -> a
 foldr1Tuple ::  Int -> ExpQ
@@ -148,7 +148,7 @@ foldr1Tuple n = liftExpFun "c" (foldr1Tuple' n)
 foldr1Tuple' ::  Int -> ExpQ -> Q Exp
 foldr1Tuple' n c = withxs n (\xsp xes -> lam1E xsp (foldr1 (appE2 c) xes))
 
--- | Type of the generated expression: 
+-- | Type of the generated expression:
 --
 -- > (r -> a -> r) -> r -> (a, ..) -> r
 foldlTuple ::  Int -> ExpQ
@@ -159,9 +159,9 @@ foldlTuple n = liftExpFun "c" (foldlTuple' n)
 foldlTuple' :: Int -> ExpQ -> ExpQ
 foldlTuple' n c = do
     z <- newName "_z"
-    withxs n (\xsp xes -> lamE [varP z, xsp] (foldl (appE2 c) (varE z) xes)) 
+    withxs n (\xsp xes -> lamE [varP z, xsp] (foldl (appE2 c) (varE z) xes))
 
--- | Type of the generated expression: 
+-- | Type of the generated expression:
 --
 -- > (a -> a -> a) -> (a, ..) -> a
 foldl1Tuple ::  Int -> ExpQ
@@ -172,7 +172,7 @@ foldl1Tuple n = liftExpFun "c" (foldl1Tuple' n)
 foldl1Tuple' ::  Int -> ExpQ -> Q Exp
 foldl1Tuple' n c = withxs n (\xsp xes -> lam1E xsp (foldl1 (appE2 c) xes))
 
--- | Type of the generated expression: 
+-- | Type of the generated expression:
 --
 -- > (a -> Bool) -> (a, ..) -> [a]
 filterTuple ::  Int -> ExpQ
@@ -181,24 +181,24 @@ filterTuple n = liftExpFun "p" (filterTuple' n)
 
 -- | Takes the predicate as a quoted expression. See 'mapTuple'' for how this can be useful.
 filterTuple' ::  Int -> ExpQ -> ExpQ
-filterTuple' n p = withxs n (\xsp xes -> lamE [xsp] (go xes)) 
+filterTuple' n p = withxs n (\xsp xes -> lamE [xsp] (go xes))
     where
         go []       = [| [] |]
         go [x]      = [| if $(p) $(x) then [$(x)] else [] |]
-        go (x:xs)   = [| (if $(p) $(x) then ($(x) :) else id) $(go xs) |] 
+        go (x:xs)   = [| (if $(p) $(x) then ($(x) :) else id) $(go xs) |]
 
-      
 
--- | Type of the generated expression: 
+
+-- | Type of the generated expression:
 --
 -- > (a -> b) -> (a, ..) -> (b, ..)
 mapTuple :: Int -> ExpQ
 mapTuple n = liftExpFun "f" (mapTuple' n)
 
 
--- | Takes the mapping as a quoted expression. This can sometimes produce an expression that typechecks when the analogous expression using 'filterTuple' does not, e.g.: 
+-- | Takes the mapping as a quoted expression. This can sometimes produce an expression that typechecks when the analogous expression using 'filterTuple' does not, e.g.:
 --
--- > $(mapTuple 2) Just        ((),"foo") -- Type error 
+-- > $(mapTuple 2) Just        ((),"foo") -- Type error
 -- > $(mapTuple' 2 [| Just |]) ((),"foo") -- OK
 mapTuple' ::  Int -> ExpQ -> Q Exp
 mapTuple' n f = withxs n (\xsp xes ->
@@ -209,7 +209,7 @@ mapTuple' n f = withxs n (\xsp xes ->
 smatch ::  PatQ -> ExpQ -> MatchQ
 smatch p e = match p (normalB e) []
 
--- | Type of the generated expression: 
+-- | Type of the generated expression:
 --
 -- > [a] -> Maybe (a, ..)
 safeTupleFromList ::  Int -> Q Exp
@@ -217,14 +217,14 @@ safeTupleFromList n = do
     xns <- newNames "_x" n
     let xps = varP <$> xns
         xes = varE <$> xns
-    xs <- newName "_xs" 
+    xs <- newName "_xs"
     lam1E (varP xs) (caseE (varE xs)
                        [ smatch (listP xps) (conE 'Just `appE` (tupE xes))
                        , smatch wildP (conE 'Nothing)
                        ])
 
 
--- | Type of the generated expression: 
+-- | Type of the generated expression:
 --
 -- > [a] -> (a, ..)
 --
@@ -275,25 +275,25 @@ tupleToList ::  Int -> Q Exp
 tupleToList n = [| $(foldrTuple' n (conE '(:))) [] |]
 
 
--- | Type of the generated expression: 
+-- | Type of the generated expression:
 --
 -- > (a1, ..) -> (b1, ..) -> (a1, .., b1, ..)
 catTuples :: Int -> Int -> Q Exp
 catTuples n m = withxs n (\xsp xes -> withys m (\ysp yes ->
     lamE [xsp,ysp] (tupE (xes ++ yes))))
 
--- | @uncatTuple n m = 'splitTupleAt' (n+m) n 
+-- | @uncatTuple n m = 'splitTupleAt' (n+m) n
 --
--- @uncatTuple n m@ is the inverse function of @uncurry (catTuples n m)@. 
+-- @uncatTuple n m@ is the inverse function of @uncurry (catTuples n m)@.
 uncatTuple :: Int -> Int -> Q Exp
-uncatTuple n m = splitTupleAt (n+m) n 
+uncatTuple n m = splitTupleAt (n+m) n
 
--- | @splitTupleAt n i@ => @\(x_0, ..., x_{n-1}) -> ((x_0, ..., x_{i-1}),(x_i, ..., x_{n-1})@ 
+-- | @splitTupleAt n i@ => @\(x_0, ..., x_{n-1}) -> ((x_0, ..., x_{i-1}),(x_i, ..., x_{n-1})@
 splitTupleAt :: Int -> Int -> Q Exp
-splitTupleAt n i = 
- withxs n (\xsp xes -> 
+splitTupleAt n i =
+ withxs n (\xsp xes ->
     case splitAt i xes of
-         (l,r) -> lam1E xsp (tupE [tupE l, tupE r])) 
+         (l,r) -> lam1E xsp (tupE [tupE l, tupE r]))
 
 
 
@@ -310,7 +310,7 @@ reindexTuple :: Int -> [Int] -> Q Exp
 reindexTuple n is = withNames' "x" n (\xps xes ->
     let
         iset = Set.fromList is
-        xsp' = fmap (\(p,i) -> if i `member` iset then p else wildP) 
+        xsp' = fmap (\(p,i) -> if i `member` iset then p else wildP)
                     (zip xps [0..])
 
     in
@@ -321,7 +321,7 @@ reindexTuple n is = withNames' "x" n (\xps xes ->
 reverseTuple ::  Int -> Q Exp
 reverseTuple n = reindexTuple n (reverse [0..n-1])
 
--- | @rotateTuple n k@ creates a function which rotates an @n@-tuple rightwards by @k@ positions (@k@ may be negative or greater than @n-1@). 
+-- | @rotateTuple n k@ creates a function which rotates an @n@-tuple rightwards by @k@ positions (@k@ may be negative or greater than @n-1@).
 rotateTuple ::  Int -> Int -> Q Exp
 rotateTuple n k = reindexTuple n (fmap (`mod` n) [n-k, n-k+1 .. 2*n-k-1])
 
@@ -335,27 +335,27 @@ constTuple n = reindexTuple 1 (replicate n 0)
 
 -- | Like 'sequence'.
 sequenceTuple ::  Int -> Q Exp
-sequenceTuple 0 = [| return () |] 
+sequenceTuple 0 = [| return () |]
 sequenceTuple 1 = [| id :: Monad m => m a -> m a |]
-sequenceTuple n = 
-    withxs n (\xsp xes -> 
-        lam1E xsp (foldl (\x y -> [| $(x) `ap` $(y) |]) 
+sequenceTuple n =
+    withxs n (\xsp xes ->
+        lam1E xsp (foldl (\x y -> [| $(x) `ap` $(y) |])
                          [| $(conE $ tupleDataName n) `liftM` $(head xes) |]
                          (tail xes)))
 
 -- | Like 'sequenceA'.
 sequenceATuple ::  Int -> Q Exp
-sequenceATuple 0 = [| pure () |] 
+sequenceATuple 0 = [| pure () |]
 sequenceATuple 1 = [| id :: Applicative f => f a -> f a |]
-sequenceATuple n = 
-    withxs n (\xsp xes -> 
-        lam1E xsp (foldl (\x y -> [| $(x) <*> $(y) |]) 
+sequenceATuple n =
+    withxs n (\xsp xes ->
+        lam1E xsp (foldl (\x y -> [| $(x) <*> $(y) |])
                          [| $(conE $ tupleDataName n) <$> $(head xes) |]
                          (tail xes)))
 
 descendingMultiindices :: Int -> Int -> [[Int]]
-descendingMultiindices _ 0 = [[]] 
-descendingMultiindices n 1 = fmap (:[]) [0..n-1] 
+descendingMultiindices _ 0 = [[]]
+descendingMultiindices n 1 = fmap (:[]) [0..n-1]
 descendingMultiindices n k | k < 0 = error ("Internal error in tuple-th: descendingMultiindices "++show n++" "++show k)
 descendingMultiindices n k = [ i:is | is <- descendingMultiindices (n-1) (k-1),
                                       i <- [head is+1,head is+2 .. n-1] ]
@@ -366,38 +366,38 @@ subtuples :: Int -> Int -> Q Exp
 subtuples n k = withxs n (\xsp xes ->
     let
         subtupleE :: [Int] -> ExpQ
-        subtupleE = tupE . fmap (xes !!) 
+        subtupleE = tupE . fmap (xes !!)
     in
         lam1E xsp (tupE (fmap (subtupleE . reverse) (descendingMultiindices n k))))
 
 -- class Tuple as a | as -> a where
 --     filterTuple :: (a -> Bool) -> as -> [a]
--- 
+--
 -- class MapTuple as a bs b | as -> a, bs -> b where
 --     mapTuple :: (a -> b) -> as -> bs
 
 -- mkTuple :: Int -> DecsQ
 -- mkTuple n = do
 --   let a = varT (mkName "a")
---                         
---     
+--
+--
 --   sequence
---     [ instanceD (cxt []) (conT ''Tuple `appT` ht n a `appT` a)  
+--     [ instanceD (cxt []) (conT ''Tuple `appT` ht n a `appT` a)
 --                 [valD (varP 'filterTuple) (normalB (filterTuple n)) []]
 --     ]
--- 
+--
 
 
--- | Generates a function which takes a 'Num' @i@ and a homogenous tuple of size @n@ and deletes the @i@-th (0-based) element of the tuple. 
+-- | Generates a function which takes a 'Num' @i@ and a homogenous tuple of size @n@ and deletes the @i@-th (0-based) element of the tuple.
 deleteAtTuple :: Int -> Q Exp
 deleteAtTuple n = do
     i <- newName "_i"
-    lam1E (varP i) $ 
+    lam1E (varP i) $
         withxs n (\xsp xes ->
 
                 let
-                    matches0 = [ match 
-                                    (litP (integerL j))  
+                    matches0 = [ match
+                                    (litP (integerL j))
                                     (normalB . tupE . deleteAt j $ xes)
                                     []
                                 | j <- [0 .. fromIntegral n -1] ]
@@ -405,10 +405,10 @@ deleteAtTuple n = do
                     errmsg1 = "deleteAtTuple "++show n++" "
                     errmsg2 = ": index out of bounds"
 
-                    matches = matches0 ++ [ 
-                                match wildP (normalB 
+                    matches = matches0 ++ [
+                                match wildP (normalB
                                     [| error (errmsg1 ++ show $(varE i) ++ errmsg2) |])
-                                            [] ] 
+                                            [] ]
                 in
                     lam1E xsp $ caseE (varE i) matches)
 
@@ -421,7 +421,7 @@ deleteAtTuple n = do
 
 -- | @takeTuple n i = \(x_0, ..., x_{n-1}) -> (x_0, ..., x_{m-1})@
 takeTuple :: Int -> Int -> Q Exp
-takeTuple n i = reindexTuple n [0..i-1] 
+takeTuple n i = reindexTuple n [0..i-1]
 
 -- | @dropTuple n i = \(x_0, ..., x_{n-1}) -> (x_i, ..., x_{n-1})@
 dropTuple :: Int -> Int -> Q Exp
@@ -435,7 +435,7 @@ cond branches otherwiseE =
 -- | @safeDeleteTuple n@ generates a function analogous to 'delete' that takes an element and an @n@-tuple and maybe returns an @n-1@-tuple (if and only if the element was found).
 safeDeleteTuple :: Int -> Q Exp
 safeDeleteTuple n = do
-    e <- newName "_deletee" 
+    e <- newName "_deletee"
     withxs n (\xsp xes ->
         lamE [varP e, xsp] (
 
@@ -443,14 +443,11 @@ safeDeleteTuple n = do
                 ixes = zip [0::Int ..] xes
 
                 ges = map (\(i,xe) ->
-                            normalGE  
+                            normalGE
                                 [| $(varE e) == $(xe) |]
-                                [| Just $((tupE . map snd . filter ((/= i) . fst)) ixes) |] 
+                                [| Just $((tupE . map snd . filter ((/= i) . fst)) ixes) |]
                           )
                            ixes
-                        
-
-                last_ge = normalGE [|otherwise|] [|Nothing|]
 
             in
                 cond ges [|Nothing|]))
@@ -487,13 +484,13 @@ findSuccessiveElementsSatisfying n = do
     withxs n (\xsp xes ->
         lamE [varP r, xsp]
             (cond
-                [ normalGE [| $(varE r) $(x0) $(x1) |] 
+                [ normalGE [| $(varE r) $(x0) $(x1) |]
                            [| Just ($(litE . integerL $ i) :: Int) |]
 
                     |
                         (i,x0,x1) <- zip3 [0..] xes (drop 1 xes) ]
                 [|Nothing|]))
-                
+
 
 -- | Generates a function modifying a single element of a tuple.
 updateAtN :: Int -- ^ Length of the input tuple
