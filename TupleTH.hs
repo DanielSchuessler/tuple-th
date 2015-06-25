@@ -282,13 +282,13 @@ catTuples :: Int -> Int -> Q Exp
 catTuples n m = withxs n (\xsp xes -> withys m (\ysp yes ->
     lamE [xsp,ysp] (tupE (xes ++ yes))))
 
--- | @uncatTuple n m = 'splitTupleAt' (n+m) n
+-- | @uncatTuple n m = 'splitTupleAt' (n+m) n@
 --
 -- @uncatTuple n m@ is the inverse function of @uncurry (catTuples n m)@.
 uncatTuple :: Int -> Int -> Q Exp
 uncatTuple n m = splitTupleAt (n+m) n
 
--- | @splitTupleAt n i@ => @\(x_0, ..., x_{n-1}) -> ((x_0, ..., x_{i-1}),(x_i, ..., x_{n-1})@
+-- | @splitTupleAt n i@ => @\\(x_0, ..., x_{n-1}) -> ((x_0, ..., x_{i-1}),(x_i, ..., x_{n-1})@
 splitTupleAt :: Int -> Int -> Q Exp
 splitTupleAt n i =
  withxs n (\xsp xes ->
@@ -419,11 +419,11 @@ deleteAtTuple n = do
         deleteAt _ _ = assert False undefined
 
 
--- | @takeTuple n i = \(x_0, ..., x_{n-1}) -> (x_0, ..., x_{m-1})@
+-- | @takeTuple n i = \\(x_0, ..., x_{n-1}) -> (x_0, ..., x_{i-1})@
 takeTuple :: Int -> Int -> Q Exp
 takeTuple n i = reindexTuple n [0..i-1]
 
--- | @dropTuple n i = \(x_0, ..., x_{n-1}) -> (x_i, ..., x_{n-1})@
+-- | @dropTuple n i = \\(x_0, ..., x_{n-1}) -> (x_i, ..., x_{n-1})@
 dropTuple :: Int -> Int -> Q Exp
 dropTuple n i = reindexTuple n [i..n-1]
 
