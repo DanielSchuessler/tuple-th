@@ -8,7 +8,7 @@ Author:              Daniel Schüssler
 Maintainer:          anotheraddress@gmx.de
 Category:            Template Haskell, Data
 Build-type:          Simple
-Cabal-version:       >=1.6
+Cabal-version:       >=1.8
 Extra-source-files:  tests/Test.hs
 Bug-reports:         https://github.com/DanielSchuessler/tuple-th/issues
 
